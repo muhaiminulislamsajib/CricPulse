@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Cricket team details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "playerNames": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "Tournament": {
+      "title": "Tournament",
+      "description": "Cricket tournament",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "teamIds": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["upcoming", "ongoing", "completed"] },
+        "overs": { "type": "number" },
+        "wickets": { "type": "number" },
+        "pointsTable": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Cricket match details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "teamAId": { "type": "string" },
+        "teamBId": { "type": "string" },
+        "teamAName": { "type": "string" },
+        "teamBName": { "type": "string" },
+        "status": { "type": "string", "enum": ["upcoming", "live", "completed"] },
+        "tossWinnerId": { "type": "string" },
+        "tossDecision": { "type": "string" },
+        "winnerId": { "type": "string" },
+        "currentInnings": { "type": "number" },
+        "score": { "type": "object" },
+        "target": { "type": "number" },
+        "result": { "type": "string" },
+        "overs": { "type": "number" },
+        "maxWickets": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamAId", "teamBId", "ownerId"]
+    },
+    "Ball": {
+      "title": "Ball",
+      "description": "Ball-by-ball record",
+      "type": "object",
+      "properties": {
+        "inningsNo": { "type": "number" },
+        "overNo": { "type": "number" },
+        "ballNo": { "type": "number" },
+        "batterName": { "type": "string" },
+        "bowlerName": { "type": "string" },
+        "runs": { "type": "number" },
+        "extra": { "type": "string" },
+        "isWicket": { "type": "boolean" },
+        "wicketType": { "type": "string" },
+        "commentary": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/teams/{teamId}": { "schema": "Team", "description": "Cricket teams" },
+    "/tournaments/{tournamentId}": { "schema": "Tournament", "description": "Cricket tournaments" },
+    "/matches/{matchId}": { "schema": "Match", "description": "Individual matches" },
+    "/matches/{matchId}/balls/{ballId}": { "schema": "Ball", "description": "Ball-by-ball log for a match" }
+  }
+}

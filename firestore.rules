@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Phase 2: Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid == request.auth.uid &&
+             data.email is string &&
+             data.email.size() < 256;
+    }
+
+    function isValidTeam(data) {
+      return data.keys().hasAll(['name', 'ownerId']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.ownerId == request.auth.uid;
+    }
+
+    function isValidTournament(data) {
+      return data.keys().hasAll(['name', 'ownerId']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.ownerId == request.auth.uid;
+    }
+
+    function isValidMatch(data) {
+      return data.keys().hasAll(['teamAId', 'teamBId', 'ownerId']) &&
+             data.teamAId is string && data.teamBId is string &&
+             data.ownerId == request.auth.uid;
+    }
+
+    function isValidBall(data) {
+      return data.keys().hasAll(['inningsNo', 'overNo', 'ballNo']) &&
+             data.inningsNo is number && data.overNo is number && data.ballNo is number;
+    }
+
+    // --- Collections ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false; // No blanket user listing
+      allow create: if isSignedIn() && userId == request.auth.uid && isValidUser(incoming());
+      allow update: if isSignedIn() && userId == request.auth.uid && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'email']);
+      allow delete: if false;
+    }
+
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidTeam(incoming());
+      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && isValidTeam(incoming());
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidTournament(incoming());
+      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && isValidTournament(incoming());
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidMatch(incoming());
+      allow update: if isSignedIn() && (existing().ownerId == request.auth.uid || 
+                    get(/databases/$(database)/documents/tournaments/$(existing().tournamentId)).data.ownerId == request.auth.uid) && isValidMatch(incoming());
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      match /balls/{ballId} {
+        allow read: if true;
+        allow write: if isSignedIn() && 
+                      (get(/databases/$(database)/documents/matches/$(matchId)).data.ownerId == request.auth.uid ||
+                       get(/databases/$(database)/documents/tournaments/$(get(/databases/$(database)/documents/matches/$(matchId)).data.tournamentId)).data.ownerId == request.auth.uid);
+      }
+    }
+  }
+}
