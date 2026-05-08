@@ -47,8 +47,14 @@ export function TournamentList({ initialTournamentId, onTournamentSelect, onMatc
 
   const createTournament = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return alert('Please login first');
-    if (selectedTeamIds.length < 2) return alert('Select at least 2 teams');
+    if (!user) {
+      setError('Please login first');
+      return;
+    }
+    if (selectedTeamIds.length < 2) {
+      setError('Select at least 2 teams');
+      return;
+    }
 
     try {
       const tournamentData = {
@@ -201,6 +207,13 @@ export function TournamentList({ initialTournamentId, onTournamentSelect, onMatc
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsModalOpen(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
             <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="bg-zinc-900 w-full max-w-xl rounded-[2.5rem] p-10 relative z-10 border border-zinc-800 max-h-[90vh] overflow-y-auto shadow-2xl">
               <h2 className="text-3xl font-black mb-8 uppercase tracking-tighter">Host Tournament</h2>
+              
+              {error && (
+                <div className="bg-red-500/10 border-l-4 border-red-500 text-red-500 text-[10px] font-black uppercase p-4 rounded-r-xl mb-6">
+                  {error}
+                </div>
+              )}
+
               <form onSubmit={createTournament} className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="col-span-full">
@@ -245,6 +258,13 @@ export function TournamentList({ initialTournamentId, onTournamentSelect, onMatc
                         {selectedTeamIds.includes(team.id) && <CheckCircle2 className="w-5 h-5 text-red-500" />}
                       </button>
                     ))}
+                    {teams.length === 0 && (
+                      <div className="col-span-full py-8 text-center bg-zinc-950 rounded-2xl border border-zinc-800 border-dashed">
+                        <p className="text-zinc-600 text-[10px] font-black uppercase tracking-widest leading-relaxed px-4">
+                          No squads found.<br />Please create at least 2 squads in the Teams section first.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

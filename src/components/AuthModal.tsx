@@ -51,20 +51,20 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 overflow-y-auto">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-zinc-950/85 backdrop-blur-md"
+            className="fixed inset-0 bg-zinc-950/90 backdrop-blur-md"
           />
           
           <motion.div 
-            initial={{ y: 20, opacity: 0, scale: 0.95 }}
+            initial={{ y: 40, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 20, opacity: 0, scale: 0.95 }}
-            className="relative w-full max-w-sm bg-zinc-900 border-2 border-zinc-800 rounded-[2.5rem] p-8 shadow-2xl overflow-visible"
+            exit={{ y: 40, opacity: 0, scale: 0.95 }}
+            className="relative w-full max-w-sm bg-zinc-900 border-2 border-zinc-800 rounded-[2.5rem] p-8 shadow-2xl overflow-visible my-auto"
           >
             <button 
               onClick={onClose} 
