@@ -7,6 +7,7 @@ import { TeamList } from './components/TeamList';
 import { MatchScorer } from './components/MatchScorer';
 import { PlayerProfile } from './components/PlayerProfile';
 import { Navbar } from './components/Navbar';
+import { AuthModal } from './components/AuthModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
@@ -25,6 +26,8 @@ export default function App() {
   const [view, setView] = useState<'home' | 'tournaments' | 'teams' | 'scoring' | 'player' | 'match_detail'>('home');
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
+  const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
     testConnection();
@@ -36,6 +39,7 @@ export default function App() {
       
       const matchId = params.get('match');
       const playerId = params.get('player');
+      const tournamentId = params.get('tournament');
       
       if (matchId) {
         setActiveMatchId(matchId);
@@ -43,6 +47,9 @@ export default function App() {
       } else if (playerId) {
         setActivePlayerId(playerId);
         setView('player');
+      } else if (tournamentId) {
+        setActiveTournamentId(tournamentId);
+        setView('tournaments');
       }
     };
 
@@ -62,10 +69,13 @@ export default function App() {
   const navigateTo = (newView: any, id?: string) => {
     if (newView === 'scoring' || newView === 'match_detail') setActiveMatchId(id || null);
     if (newView === 'player') setActivePlayerId(id || null);
+    if (newView === 'tournaments') setActiveTournamentId(id || null);
     setView(newView);
     // Update hash for sharing
     if (id) {
-      const param = newView === 'player' ? 'player' : 'match';
+      let param = 'match';
+      if (newView === 'player') param = 'player';
+      if (newView === 'tournaments') param = 'tournament';
       window.location.hash = `${param}=${id}`;
     } else {
       window.location.hash = '';
@@ -87,7 +97,11 @@ export default function App() {
   return (
     <AuthContext.Provider value={{ user, loading }}>
       <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans">
-        <Navbar currentView={view} onViewChange={navigateTo} />
+        <Navbar 
+          currentView={view} 
+          onViewChange={navigateTo} 
+          onAuthClick={() => setIsAuthModalOpen(true)}
+        />
         
         <main className="max-w-7xl mx-auto px-4 py-8">
           <AnimatePresence mode="wait">
@@ -99,13 +113,33 @@ export default function App() {
               transition={{ duration: 0.3 }}
             >
               {view === 'home' && <Home onStartScoring={() => navigateTo('scoring')} onExploreTournaments={() => navigateTo('tournaments')} />}
-              {view === 'tournaments' && <TournamentList />}
+              {view === 'tournaments' && (
+                <TournamentList 
+                  initialTournamentId={activeTournamentId} 
+                  onTournamentSelect={(id) => {
+                    setActiveTournamentId(id);
+                    if (id) window.location.hash = `tournament=${id}`;
+                    else window.location.hash = '';
+                  }} 
+                  onMatchSelect={(id) => navigateTo('scoring', id)}
+                  onScheduleMatch={(tid) => {
+                    setActiveTournamentId(tid);
+                    setActiveMatchId(null);
+                    setView('scoring');
+                  }}
+                />
+              )}
               {view === 'teams' && <TeamList />}
-              {view === 'scoring' && <MatchScorer matchId={activeMatchId} onFinish={() => setView('home')} />}
+              {view === 'scoring' && <MatchScorer matchId={activeMatchId} tournamentId={activeTournamentId} onFinish={() => setView('home')} />}
               {view === 'player' && <PlayerProfile playerId={activePlayerId!} onBack={() => navigateTo('home')} />}
             </motion.div>
           </AnimatePresence>
         </main>
+
+        <AuthModal 
+          isOpen={isAuthModalOpen} 
+          onClose={() => setIsAuthModalOpen(false)} 
+        />
       </div>
     </AuthContext.Provider>
   );

@@ -8,14 +8,16 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface MatchScorerProps {
   matchId: string | null;
+  tournamentId?: string | null;
   onFinish: () => void;
 }
 
-export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
+export function MatchScorer({ matchId, tournamentId, onFinish }: MatchScorerProps) {
   const { user } = useAuth();
   const [match, setMatch] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<any[]>([]);
+  const [tournament, setTournament] = useState<any>(null);
   const [isSetup, setIsSetup] = useState(true);
   
   // Selection state for setup
@@ -34,6 +36,17 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
     onSnapshot(collection(db, 'teams'), (snapshot) => {
       setTeams(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
+
+    if (tournamentId) {
+      onSnapshot(doc(db, 'tournaments', tournamentId), (d) => {
+        if (d.exists()) {
+          const tData = d.data();
+          setTournament({ id: d.id, ...tData });
+          setOvers(tData.overs || 20);
+          setWickets(tData.wickets || 10);
+        }
+      });
+    }
 
     if (matchId) {
       setIsSetup(false);
@@ -85,6 +98,7 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
         teamBId,
         teamAName: teamA.name,
         teamBName: teamB.name,
+        tournamentId: tournamentId || null,
         status: 'live',
         currentInnings: 1,
         overs,
@@ -144,6 +158,31 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
       winner = match.teamBId;
     }
 
+    // Update player stats
+    const nextPlayerStats = { ...(match.playerStats || {}) };
+    
+    // Update Batter
+    if (currentBatter) {
+      const bStats = nextPlayerStats[currentBatter] || { name: playersA.find(p => p.id === currentBatter)?.name || playersB.find(p => p.id === currentBatter)?.name || 'Unknown', runs: 0, balls: 0, wickets: 0, runsConceded: 0 };
+      bStats.runs += runs;
+      if (!isExtra || extraType === 'noball') {
+        bStats.balls += 1;
+      }
+      nextPlayerStats[currentBatter] = bStats;
+    }
+
+    // Update Bowler
+    if (currentBowler) {
+      const boStats = nextPlayerStats[currentBowler] || { name: playersA.find(p => p.id === currentBowler)?.name || playersB.find(p => p.id === currentBowler)?.name || 'Unknown', runs: 0, balls: 0, wickets: 0, runsConceded: 0 };
+      if (!isExtra || extraType === 'noball' || extraType === 'wide') {
+        boStats.runsConceded += runs + (isExtra ? 1 : 0);
+      }
+      if (isWicket) {
+        boStats.wickets += 1;
+      }
+      nextPlayerStats[currentBowler] = boStats;
+    }
+
     try {
       await updateDoc(doc(db, 'matches', match.id), {
         score: nextScore,
@@ -151,6 +190,8 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
         status: nextStatus,
         winnerId: winner,
         manOfTheMatchId: motmId,
+        playerStats: nextPlayerStats,
+        playerIds: Object.keys(nextPlayerStats)
       });
 
       // Log ball with player data
@@ -183,7 +224,9 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500 font-bold text-zinc-100 appearance-none"
               >
                 <option value="">Select Team</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {teams
+                  .filter(t => !tournament || tournament.teamIds?.includes(t.id))
+                  .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             <div>
@@ -194,7 +237,9 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-red-500 font-bold text-zinc-100 appearance-none"
               >
                 <option value="">Select Team</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {teams
+                  .filter(t => !tournament || tournament.teamIds?.includes(t.id))
+                  .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
           </div>

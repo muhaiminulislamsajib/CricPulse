@@ -7,7 +7,14 @@ import { Plus, Trophy, Calendar, Settings, ChevronRight, Loader2, CheckCircle2 }
 import { motion, AnimatePresence } from 'motion/react';
 import { TournamentDetail } from './TournamentDetail';
 
-export function TournamentList() {
+interface TournamentListProps {
+  initialTournamentId?: string | null;
+  onTournamentSelect?: (id: string | null) => void;
+  onMatchSelect?: (id: string) => void;
+  onScheduleMatch?: (tournamentId: string) => void;
+}
+
+export function TournamentList({ initialTournamentId, onTournamentSelect, onMatchSelect, onScheduleMatch }: TournamentListProps) {
   const { user } = useAuth();
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
@@ -80,10 +87,28 @@ export function TournamentList() {
     setWickets(10);
   };
 
-  const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
+  const [activeTournamentId, setActiveTournamentId] = useState<string | null>(initialTournamentId || null);
+
+  useEffect(() => {
+    if (initialTournamentId !== undefined) {
+      setActiveTournamentId(initialTournamentId);
+    }
+  }, [initialTournamentId]);
+
+  const handleTournamentSelect = (id: string | null) => {
+    setActiveTournamentId(id);
+    onTournamentSelect?.(id);
+  };
 
   if (activeTournamentId) {
-    return <TournamentDetail tournamentId={activeTournamentId} onBack={() => setActiveTournamentId(null)} onMatchClick={() => {}} />;
+    return (
+      <TournamentDetail 
+        tournamentId={activeTournamentId} 
+        onBack={() => handleTournamentSelect(null)} 
+        onMatchClick={(id) => onMatchSelect?.(id)}
+        onScheduleMatch={() => onScheduleMatch?.(activeTournamentId)}
+      />
+    );
   }
 
   return (
@@ -157,7 +182,7 @@ export function TournamentList() {
                     )}
                   </div>
                   <button 
-                    onClick={() => setActiveTournamentId(tournament.id)}
+                    onClick={() => handleTournamentSelect(tournament.id)}
                     className="flex items-center gap-1 text-zinc-100 font-black text-[10px] uppercase tracking-widest group-hover:gap-3 transition-all hover:text-red-500"
                   >
                     Live Dashboard

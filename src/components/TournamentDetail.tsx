@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Loader2, Trophy, Users, BarChart3, Star, Target, Share2, ChevronLeft } from 'lucide-react';
+import { Loader2, Trophy, Users, BarChart3, Star, Target, Share2, ChevronLeft, Plus, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface TournamentDetailProps {
   tournamentId: string;
   onBack: () => void;
   onMatchClick: (matchId: string) => void;
+  onScheduleMatch: () => void;
 }
 
-export function TournamentDetail({ tournamentId, onBack, onMatchClick }: TournamentDetailProps) {
+export function TournamentDetail({ tournamentId, onBack, onMatchClick, onScheduleMatch }: TournamentDetailProps) {
   const [tournament, setTournament] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [matches, setMatches] = useState<any[]>([]);
@@ -33,6 +34,36 @@ export function TournamentDetail({ tournamentId, onBack, onMatchClick }: Tournam
       unsubMatches();
     };
   }, [tournamentId]);
+
+  const stats = React.useMemo(() => {
+    const playerStats: Record<string, any> = {};
+    let highestScore = { id: '', name: 'N/A', score: 0, balls: 0 };
+    let bestBowling = { id: '', name: 'N/A', wickets: 0, runs: 0 };
+
+    matches.forEach(m => {
+      if (!m.playerStats) return;
+      Object.entries(m.playerStats).forEach(([pid, s]: [string, any]) => {
+        if (!playerStats[pid]) playerStats[pid] = { id: pid, name: s.name, runs: 0, balls: 0, wickets: 0, runsConceded: 0, matches: 0 };
+        playerStats[pid].runs += (s.runs || 0);
+        playerStats[pid].balls += (s.balls || 0);
+        playerStats[pid].wickets += (s.wickets || 0);
+        playerStats[pid].runsConceded += (s.runsConceded || 0);
+        playerStats[pid].matches += 1;
+
+        if ((s.runs || 0) > highestScore.score) {
+          highestScore = { id: pid, name: s.name, score: s.runs, balls: s.balls };
+        }
+        if ((s.wickets || 0) > bestBowling.wickets || (s.wickets === bestBowling.wickets && (s.runsConceded || 0) < bestBowling.runs)) {
+          bestBowling = { id: pid, name: s.name, wickets: s.wickets, runs: s.runsConceded };
+        }
+      });
+    });
+
+    const topScorers = Object.values(playerStats).sort((a, b) => b.runs - a.runs).slice(0, 5);
+    const topWicketTakers = Object.values(playerStats).sort((a, b) => b.wickets - a.wickets).slice(0, 5);
+
+    return { topScorers, topWicketTakers, highestScore, bestBowling };
+  }, [matches]);
 
   const shareTournament = () => {
     const url = `${window.location.origin}/?tournament=${tournamentId}`;
@@ -70,6 +101,13 @@ export function TournamentDetail({ tournamentId, onBack, onMatchClick }: Tournam
             <StatSmall label="Matches" value={matches.length} />
             <StatSmall label="Avg Score" value="164" />
           </div>
+          <button 
+            onClick={onScheduleMatch}
+            className="bg-red-600 hover:bg-red-500 text-white font-black px-8 py-4 rounded-2xl flex items-center gap-2 uppercase text-xs tracking-widest transition-all shadow-xl shadow-red-500/10"
+          >
+            <Plus className="w-5 h-5" />
+            New Match
+          </button>
         </div>
         <div className="absolute right-0 top-0 w-80 h-80 bg-red-600/5 rounded-full blur-[80px] -mr-40 -mt-40" />
       </div>
@@ -79,10 +117,50 @@ export function TournamentDetail({ tournamentId, onBack, onMatchClick }: Tournam
         <div className="lg:col-span-1 space-y-8">
           <SectionHeader icon={<Trophy className="text-yellow-500" />} title="Tournament Leaders" />
           <div className="bg-zinc-900 rounded-[2rem] p-6 border border-zinc-800 space-y-6">
-            <LeaderItem label="Orange Cap (Runs)" name="Sajib" stats="452 Runs" isTop />
-            <LeaderItem label="Purple Cap (Wickets)" name="Karim" stats="18 Wickets" />
-            <LeaderItem label="Highest Score" name="Nabil" stats="112 (48)" />
-            <LeaderItem label="MVP" name="Warriors Capt." stats="Rank #1" />
+            <LeaderItem 
+              label="Orange Cap (Runs)" 
+              name={stats.topScorers[0]?.name || 'TBD'} 
+              stats={`${stats.topScorers[0]?.runs || 0} Runs`} 
+              isTop 
+              onClick={() => stats.topScorers[0]?.id && window.location.assign(`#player=${stats.topScorers[0].id}`)}
+            />
+            <LeaderItem 
+              label="Purple Cap (Wickets)" 
+              name={stats.topWicketTakers[0]?.name || 'TBD'} 
+              stats={`${stats.topWicketTakers[0]?.wickets || 0} Wkts`} 
+              onClick={() => stats.topWicketTakers[0]?.id && window.location.assign(`#player=${stats.topWicketTakers[0].id}`)}
+            />
+            <LeaderItem 
+              label="Highest Score" 
+              name={stats.highestScore.name} 
+              stats={`${stats.highestScore.score} (${stats.highestScore.balls || 0})`} 
+              onClick={() => stats.highestScore.id && window.location.assign(`#player=${stats.highestScore.id}`)}
+            />
+            <LeaderItem 
+              label="Best Bowling" 
+              name={stats.bestBowling.name} 
+              stats={`${stats.bestBowling.wickets}/${stats.bestBowling.runs}`} 
+              onClick={() => stats.bestBowling.id && window.location.assign(`#player=${stats.bestBowling.id}`)}
+            />
+          </div>
+
+          <SectionHeader icon={<Users className="text-blue-500" />} title="Match Center" />
+          <div className="space-y-4">
+            {matches.map(m => (
+              <div 
+                key={m.id} 
+                onClick={() => onMatchClick(m.id)}
+                className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl cursor-pointer hover:border-red-500/30 transition-all group"
+              >
+                <div className="flex justify-between items-center">
+                  <div className="font-black uppercase tracking-tight group-hover:text-white transition-colors text-xs">
+                    {m.teamAName} v {m.teamBName}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-red-500 transition-colors" />
+                </div>
+              </div>
+            ))}
+            {matches.length === 0 && <p className="text-zinc-600 text-[10px] text-center py-4 uppercase font-black tracking-widest italic">Scheduling Matches...</p>}
           </div>
         </div>
 
@@ -141,11 +219,11 @@ function StatSmall({ label, value }: { label: string, value: string | number }) 
   );
 }
 
-function LeaderItem({ label, name, stats, isTop = false }: { label: string, name: string, stats: string, isTop?: boolean }) {
+function LeaderItem({ label, name, stats, isTop = false, onClick }: { label: string, name: string, stats: string, isTop?: boolean, onClick?: () => void }) {
   return (
-    <div className="group cursor-pointer">
+    <div className="group cursor-pointer" onClick={onClick}>
       <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">{label}</div>
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center text-sm">
         <div className={`font-black uppercase tracking-tight transition-colors ${isTop ? 'text-red-500 text-lg' : 'text-white'}`}>
           {name}
         </div>

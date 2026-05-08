@@ -8,11 +8,11 @@ import { AuthModal } from './AuthModal';
 interface NavbarProps {
   currentView: string;
   onViewChange: (view: any) => void;
+  onAuthClick: () => void;
 }
 
-export function Navbar({ currentView, onViewChange }: NavbarProps) {
+export function Navbar({ currentView, onViewChange, onAuthClick }: NavbarProps) {
   const { user } = useAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   return (
     <nav className="h-16 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-50 px-6">
@@ -85,7 +85,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
             </div>
           ) : (
             <button 
-              onClick={() => setIsAuthModalOpen(true)}
+              onClick={onAuthClick}
               className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all active:scale-95 text-sm uppercase tracking-widest flex items-center gap-2"
               id="login-button"
             >
@@ -95,7 +95,6 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
           )}
         </div>
       </div>
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </nav>
   );
 }

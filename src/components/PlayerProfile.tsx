@@ -21,11 +21,43 @@ export function PlayerProfile({ playerId, onBack }: PlayerProfileProps) {
       if (docSnap.exists()) {
         setPlayer({ id: docSnap.id, ...docSnap.data() });
       }
+    });
+
+    const q = query(collection(db, 'matches'), where('playerIds', 'array-contains', playerId));
+    const unsubMatches = onSnapshot(q, (snapshot) => {
+      setMatches(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      unsubMatches();
+    };
   }, [playerId]);
+
+  const careerStats = React.useMemo(() => {
+    const stats = {
+      matches: matches.length,
+      runs: 0,
+      wickets: 0,
+      highestScore: 0,
+      ballsFaced: 0,
+      runsConceded: 0,
+    };
+
+    matches.forEach(m => {
+      const ps = m.playerStats?.[playerId];
+      if (!ps) return;
+      stats.runs += (ps.runs || 0);
+      stats.wickets += (ps.wickets || 0);
+      stats.highestScore = Math.max(stats.highestScore, ps.runs || 0);
+      stats.ballsFaced += (ps.balls || 0);
+      stats.runsConceded += (ps.runsConceded || 0);
+    });
+
+    const strikeRate = stats.ballsFaced > 0 ? (stats.runs / stats.ballsFaced) * 100 : 0;
+    return { ...stats, strikeRate };
+  }, [matches, playerId]);
 
   if (loading) {
     return (
@@ -76,19 +108,27 @@ export function PlayerProfile({ playerId, onBack }: PlayerProfileProps) {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <StatCard icon={<Trophy className="text-yellow-500" />} label="Matches" value={player.careerStats?.matches || 0} />
-        <StatCard icon={<TrendingUp className="text-red-500" />} label="Total Runs" value={player.careerStats?.runs || 0} />
-        <StatCard icon={<Star className="text-emerald-500" />} label="Wickets" value={player.careerStats?.wickets || 0} />
-        <StatCard icon={<Target className="text-blue-500" />} label="Highest" value={player.careerStats?.highestScore || 0} />
+        <StatCard icon={<Trophy className="text-yellow-500" />} label="Matches" value={careerStats.matches} />
+        <StatCard icon={<TrendingUp className="text-red-500" />} label="Total Runs" value={careerStats.runs} />
+        <StatCard icon={<Star className="text-emerald-500" />} label="Wickets" value={careerStats.wickets} />
+        <StatCard icon={<Target className="text-blue-500" />} label="Highest" value={careerStats.highestScore} />
       </div>
 
       {/* Career Breakdown */}
       <div className="bg-zinc-900 rounded-[2.5rem] p-8 border border-zinc-800">
         <h3 className="text-xl font-black uppercase tracking-tight mb-8">Performance Metrics</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-          <StatProgress label="Strike Rate" value={player.careerStats?.strikeRate || 0} max={200} color="bg-red-500" />
-          <StatProgress label="Economy" value={player.careerStats?.economy || 0} max={12} reverse color="bg-emerald-500" />
-          <StatProgress label="Avg Runs/Match" value={(player.careerStats?.runs / (player.careerStats?.matches || 1)) || 0} max={100} color="bg-blue-500" />
+          <StatProgress label="Strike Rate" value={careerStats.strikeRate} max={200} color="bg-red-500" />
+          <StatProgress label="Avg Runs/Match" value={(careerStats.runs / (careerStats.matches || 1))} max={100} color="bg-blue-500" />
+          <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 flex items-center justify-between">
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Recent Form</span>
+            <div className="flex gap-2">
+              {matches.slice(0, 5).map((m, i) => (
+                 <div key={i} className={`w-3 h-3 rounded-full ${m.winnerId === player?.teamId ? 'bg-emerald-500' : 'bg-red-500'}`} />
+              ))}
+              {matches.length === 0 && <span className="text-[9px] text-zinc-700 font-bold uppercase italic">No Data</span>}
+            </div>
+          </div>
         </div>
       </div>
     </div>
