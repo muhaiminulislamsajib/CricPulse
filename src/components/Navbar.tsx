@@ -1,8 +1,9 @@
-import React from 'react';
-import { Trophy, Users, Play, Home, LogIn, LogOut, CircleUser } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trophy, Users, Play, Home, LogIn, LogOut, CircleUser, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../App';
-import { loginWithGoogle, logout } from '../firebase';
+import { logout } from '../firebase';
 import { motion } from 'motion/react';
+import { AuthModal } from './AuthModal';
 
 interface NavbarProps {
   currentView: string;
@@ -11,19 +12,7 @@ interface NavbarProps {
 
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const { user } = useAuth();
-
-  const handleLogin = async () => {
-    try {
-      await loginWithGoogle();
-    } catch (err: any) {
-      console.error('Login error:', err);
-      if (err.code === 'auth/popup-blocked') {
-        alert('Please allow popups for this site to login with Google.');
-      } else {
-        alert('Login failed: ' + (err.message || 'Unknown error'));
-      }
-    }
-  };
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   return (
     <nav className="h-16 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-50 px-6">
@@ -74,14 +63,14 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">User Account</p>
-                <p className="text-sm font-semibold">{user.displayName}</p>
+                <p className="text-sm font-semibold">{user.displayName || user.email?.split('@')[0]}</p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
                   {user.photoURL ? (
                     <img src={user.photoURL} className="w-full h-full object-cover" alt="" />
                   ) : (
-                    <span className="text-red-500 font-bold">{user.displayName?.charAt(0) || 'U'}</span>
+                    <span className="text-red-500 font-bold">{user.displayName?.charAt(0) || user.email?.charAt(0).toUpperCase() || 'U'}</span>
                   )}
                 </div>
                 <button 
@@ -96,15 +85,17 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
             </div>
           ) : (
             <button 
-              onClick={handleLogin}
-              className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all active:scale-95 text-sm uppercase tracking-widest"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all active:scale-95 text-sm uppercase tracking-widest flex items-center gap-2"
               id="login-button"
             >
-              Login
+              <LogIn className="w-4 h-4" />
+              Sign In
             </button>
           )}
         </div>
       </div>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </nav>
   );
 }

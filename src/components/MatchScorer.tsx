@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, doc, addDoc, updateDoc, onSnapshot, serverTimestamp, query, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, onSnapshot, serverTimestamp, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../App';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -39,12 +39,13 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
       setIsSetup(false);
       onSnapshot(doc(db, 'matches', matchId), async (d) => {
         if (d.exists()) {
-          const mData = { id: d.id, ...d.data() };
+          const data = d.data();
+          const mData = { id: d.id, ...data };
           setMatch(mData);
 
           // Fetch players for these teams
-          const qA = query(collection(db, 'players'), where('teamId', '==', mData.teamAId));
-          const qB = query(collection(db, 'players'), where('teamId', '==', mData.teamBId));
+          const qA = query(collection(db, 'players'), where('teamId', '==', data.teamAId));
+          const qB = query(collection(db, 'players'), where('teamId', '==', data.teamBId));
           const [sA, sB] = await Promise.all([getDocs(qA), getDocs(qB)]);
           setPlayersA(sA.docs.map(p => ({ id: p.id, ...p.data() })));
           setPlayersB(sB.docs.map(p => ({ id: p.id, ...p.data() })));
