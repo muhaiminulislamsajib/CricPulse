@@ -5,6 +5,7 @@ import { useAuth } from '../App';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import { Plus, Trophy, Calendar, Settings, ChevronRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { TournamentDetail } from './TournamentDetail';
 
 export function TournamentList() {
   const { user } = useAuth();
@@ -51,14 +52,18 @@ export function TournamentList() {
         wickets,
         teamIds: selectedTeamIds,
         createdAt: serverTimestamp(),
-        pointsTable: selectedTeamIds.map(id => ({
-          teamId: id,
-          played: 0,
-          won: 0,
-          lost: 0,
-          points: 0,
-          nrr: 0
-        }))
+        pointsTable: selectedTeamIds.map(id => {
+          const team = teams.find(t => t.id === id);
+          return {
+            teamId: id,
+            teamName: team?.name || 'Unknown',
+            played: 0,
+            won: 0,
+            lost: 0,
+            points: 0,
+            nrr: 0
+          };
+        })
       };
       await addDoc(collection(db, 'tournaments'), tournamentData);
       setIsModalOpen(false);
@@ -74,6 +79,12 @@ export function TournamentList() {
     setOvers(20);
     setWickets(10);
   };
+
+  const [activeTournamentId, setActiveTournamentId] = useState<string | null>(null);
+
+  if (activeTournamentId) {
+    return <TournamentDetail tournamentId={activeTournamentId} onBack={() => setActiveTournamentId(null)} onMatchClick={() => {}} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -145,7 +156,10 @@ export function TournamentList() {
                       </div>
                     )}
                   </div>
-                  <button className="flex items-center gap-1 text-zinc-100 font-black text-[10px] uppercase tracking-widest group-hover:gap-3 transition-all hover:text-red-500">
+                  <button 
+                    onClick={() => setActiveTournamentId(tournament.id)}
+                    className="flex items-center gap-1 text-zinc-100 font-black text-[10px] uppercase tracking-widest group-hover:gap-3 transition-all hover:text-red-500"
+                  >
                     Live Dashboard
                     <ChevronRight className="w-4 h-4 text-red-500" />
                   </button>

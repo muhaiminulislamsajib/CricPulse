@@ -24,6 +24,12 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
   const [overs, setOvers] = useState(20);
   const [wickets, setWickets] = useState(10);
 
+  const [playersA, setPlayersA] = useState<any[]>([]);
+  const [playersB, setPlayersB] = useState<any[]>([]);
+  const [currentBatter, setCurrentBatter] = useState('');
+  const [currentBowler, setCurrentBowler] = useState('');
+  const [motmId, setMotmId] = useState('');
+
   useEffect(() => {
     onSnapshot(collection(db, 'teams'), (snapshot) => {
       setTeams(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -31,14 +37,34 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
 
     if (matchId) {
       setIsSetup(false);
-      onSnapshot(doc(db, 'matches', matchId), (d) => {
-        if (d.exists()) setMatch({ id: d.id, ...d.data() });
+      onSnapshot(doc(db, 'matches', matchId), async (d) => {
+        if (d.exists()) {
+          const mData = { id: d.id, ...d.data() };
+          setMatch(mData);
+
+          // Fetch players for these teams
+          const qA = query(collection(db, 'players'), where('teamId', '==', mData.teamAId));
+          const qB = query(collection(db, 'players'), where('teamId', '==', mData.teamBId));
+          const [sA, sB] = await Promise.all([getDocs(qA), getDocs(qB)]);
+          setPlayersA(sA.docs.map(p => ({ id: p.id, ...p.data() })));
+          setPlayersB(sB.docs.map(p => ({ id: p.id, ...p.data() })));
+        }
         setLoading(false);
       });
     } else {
       setLoading(false);
     }
   }, [matchId]);
+
+  const shareMatch = () => {
+    const url = `${window.location.origin}/?match=${matchId || match?.id}`;
+    if (navigator.share) {
+      navigator.share({ title: 'CricPulse Match', url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    }
+  };
 
   const [currentScore, setCurrentScore] = useState({
     runs: 0,
@@ -123,15 +149,18 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
         currentInnings: nextInnings,
         status: nextStatus,
         winnerId: winner,
+        manOfTheMatchId: motmId,
       });
 
-      // Log ball
+      // Log ball with player data
       await addDoc(collection(db, 'matches', match.id, 'balls'), {
         inningsNo: match.currentInnings,
         runs,
         isWicket,
         isExtra,
         extraType,
+        batterId: currentBatter,
+        bowlerId: currentBowler,
         timestamp: serverTimestamp(),
       });
     } catch (err) {
@@ -220,12 +249,21 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
                 <span>{match.currentInnings === 1 ? match.teamBName : match.teamAName}</span>
               </h1>
             </div>
-            {match.status === 'completed' && (
-              <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl text-center">
-                <CheckCircle2 className="w-8 h-8 mx-auto text-red-500 mb-2" />
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Summary</span>
-              </div>
-            )}
+            <div className="flex gap-2">
+              <button 
+                onClick={shareMatch}
+                className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-center hover:bg-zinc-800 transition-colors"
+                title="Share Match"
+              >
+                <Hash className="w-6 h-6 text-zinc-400 mx-auto" />
+              </button>
+              {match.status === 'completed' && (
+                <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl text-center">
+                  <CheckCircle2 className="w-8 h-8 mx-auto text-red-500 mb-2" />
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Summary</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-end gap-2 md:gap-12">
@@ -237,11 +275,42 @@ export function MatchScorer({ matchId, onFinish }: MatchScorerProps) {
                   /{currentInnings.wickets}
                 </span>
              </div>
-             <div className="pb-2 md:pb-10">
+             <div className="pb-2 md:pb-10 flex-1">
                 <div className="text-red-500 font-black text-[10px] uppercase tracking-widest mb-2">Current Progress</div>
-                <div className="text-3xl md:text-5xl font-black text-zinc-300 font-mono tracking-tighter">
+                <div className="text-3xl md:text-5xl font-black text-zinc-300 font-mono tracking-tighter mb-6">
                   {over}.{ballInOver} <span className="text-zinc-700 text-2xl font-medium">/ {match.overs}</span>
                 </div>
+                
+                {match.status === 'live' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-zinc-600 block mb-1">Striker</label>
+                      <select 
+                        value={currentBatter} 
+                        onChange={e => setCurrentBatter(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 text-[10px] p-2 rounded-lg font-black uppercase text-zinc-300 outline-none focus:border-red-500"
+                      >
+                        <option value="">Select Batter</option>
+                        {(match.currentInnings === 1 ? playersA : playersB).map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-zinc-600 block mb-1">Bowler</label>
+                      <select 
+                        value={currentBowler} 
+                        onChange={e => setCurrentBowler(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 text-[10px] p-2 rounded-lg font-black uppercase text-zinc-300 outline-none focus:border-red-500"
+                      >
+                        <option value="">Select Bowler</option>
+                        {(match.currentInnings === 1 ? playersB : playersA).map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
              </div>
           </div>
 

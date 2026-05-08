@@ -27,6 +27,33 @@
       },
       "required": ["name", "ownerId"]
     },
+    "Player": {
+      "title": "Player",
+      "description": "Individual player profile and career stats",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "teamId": { "type": "string" },
+        "role": { "type": "string" },
+        "careerStats": {
+          "type": "object",
+          "properties": {
+            "matches": { "type": "number" },
+            "runs": { "type": "number" },
+            "wickets": { "type": "number" },
+            "highestScore": { "type": "number" },
+            "bestBowling": { "type": "string" },
+            "fifties": { "type": "number" },
+            "hundreds": { "type": "number" },
+            "strikeRate": { "type": "number" },
+            "economy": { "type": "number" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
     "Tournament": {
       "title": "Tournament",
       "description": "Cricket tournament",
@@ -41,6 +68,16 @@
         "overs": { "type": "number" },
         "wickets": { "type": "number" },
         "pointsTable": { "type": "array" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "mostRuns": { "type": "array" },
+            "mostWickets": { "type": "array" },
+            "highestScore": { "type": "object" },
+            "bestBowling": { "type": "object" },
+            "mvp": { "type": "object" }
+          }
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "ownerId"]
@@ -93,6 +130,7 @@
   "firestore": {
     "/users/{userId}": { "schema": "User", "description": "User profiles" },
     "/teams/{teamId}": { "schema": "Team", "description": "Cricket teams" },
+    "/players/{playerId}": { "schema": "Player", "description": "Player profiles" },
     "/tournaments/{tournamentId}": { "schema": "Tournament", "description": "Cricket tournaments" },
     "/matches/{matchId}": { "schema": "Match", "description": "Individual matches" },
     "/matches/{matchId}/balls/{ballId}": { "schema": "Ball", "description": "Ball-by-ball log for a match" }

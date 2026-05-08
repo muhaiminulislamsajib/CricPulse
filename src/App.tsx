@@ -5,8 +5,10 @@ import { Home } from './components/Home';
 import { TournamentList } from './components/TournamentList';
 import { TeamList } from './components/TeamList';
 import { MatchScorer } from './components/MatchScorer';
+import { PlayerProfile } from './components/PlayerProfile';
 import { Navbar } from './components/Navbar';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -20,21 +22,54 @@ export const useAuth = () => useContext(AuthContext);
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'home' | 'tournaments' | 'teams' | 'scoring'>('home');
+  const [view, setView] = useState<'home' | 'tournaments' | 'teams' | 'scoring' | 'player' | 'match_detail'>('home');
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     testConnection();
+    
+    // Simple deep linking handler
+    const handleNavigation = () => {
+      const hash = window.location.hash || window.location.search;
+      const params = new URLSearchParams(hash.replace('#', '?'));
+      
+      const matchId = params.get('match');
+      const playerId = params.get('player');
+      
+      if (matchId) {
+        setActiveMatchId(matchId);
+        setView('scoring');
+      } else if (playerId) {
+        setActivePlayerId(playerId);
+        setView('player');
+      }
+    };
+
+    handleNavigation();
+    window.addEventListener('hashchange', handleNavigation);
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      window.removeEventListener('hashchange', handleNavigation);
+    };
   }, []);
 
-  const navigateTo = (newView: 'home' | 'tournaments' | 'teams' | 'scoring', matchId?: string) => {
-    if (matchId) setActiveMatchId(matchId);
+  const navigateTo = (newView: any, id?: string) => {
+    if (newView === 'scoring' || newView === 'match_detail') setActiveMatchId(id || null);
+    if (newView === 'player') setActivePlayerId(id || null);
     setView(newView);
+    // Update hash for sharing
+    if (id) {
+      const param = newView === 'player' ? 'player' : 'match';
+      window.location.hash = `${param}=${id}`;
+    } else {
+      window.location.hash = '';
+    }
   };
 
   if (loading) {
@@ -67,6 +102,7 @@ export default function App() {
               {view === 'tournaments' && <TournamentList />}
               {view === 'teams' && <TeamList />}
               {view === 'scoring' && <MatchScorer matchId={activeMatchId} onFinish={() => setView('home')} />}
+              {view === 'player' && <PlayerProfile playerId={activePlayerId!} onBack={() => navigateTo('home')} />}
             </motion.div>
           </AnimatePresence>
         </main>

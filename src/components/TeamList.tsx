@@ -41,13 +41,30 @@ export function TeamList() {
     if (!newTeamName.trim()) return;
 
     try {
-      const teamData = {
+      const teamRef = await addDoc(collection(db, 'teams'), {
         name: newTeamName,
         ownerId: user.uid,
         playerNames: players,
         createdAt: serverTimestamp(),
-      };
-      await addDoc(collection(db, 'teams'), teamData);
+      });
+
+      // Create player documents
+      for (const playerName of players) {
+        await addDoc(collection(db, 'players'), {
+          name: playerName,
+          teamId: teamRef.id,
+          teamName: newTeamName,
+          ownerId: user.uid,
+          careerStats: {
+            matches: 0,
+            runs: 0,
+            wickets: 0,
+            highestScore: 0,
+          },
+          createdAt: serverTimestamp(),
+        });
+      }
+
       setNewTeamName('');
       setPlayers([]);
       setIsModalOpen(false);

@@ -12,6 +12,19 @@ interface NavbarProps {
 export function Navbar({ currentView, onViewChange }: NavbarProps) {
   const { user } = useAuth();
 
+  const handleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      console.error('Login error:', err);
+      if (err.code === 'auth/popup-blocked') {
+        alert('Please allow popups for this site to login with Google.');
+      } else {
+        alert('Login failed: ' + (err.message || 'Unknown error'));
+      }
+    }
+  };
+
   return (
     <nav className="h-16 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md sticky top-0 z-50 px-6">
       <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
@@ -83,7 +96,7 @@ export function Navbar({ currentView, onViewChange }: NavbarProps) {
             </div>
           ) : (
             <button 
-              onClick={loginWithGoogle}
+              onClick={handleLogin}
               className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all active:scale-95 text-sm uppercase tracking-widest"
               id="login-button"
             >
